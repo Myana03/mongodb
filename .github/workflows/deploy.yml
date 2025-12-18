@@ -3,7 +3,7 @@ name: Deploy MongoDB App
 on:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   id-token: write
