@@ -1,0 +1,50 @@
+name: Deploy MongoDB App
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      # UPLOAD STEP: We name it 'mongodb-app.jar' to match the infrastructure file
+      - name: Upload JAR to S3
+        run: |
+          aws s3 cp target/*.jar s3://${{ secrets.BUCKET_NAME }}/mongodb-app.jar
+
+      # DEPLOY STEP: We use a new Stack Name 'My-Mongo-Stack'
+      - name: Deploy CloudFormation
+        run: |
+          aws cloudformation deploy \
+            --template-file infrastructure.yaml \
+            --stack-name My-Mongo-Stack \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              KeyName=${{ secrets.KEY_NAME }} \
+              BucketName=${{ secrets.BUCKET_NAME }}
