@@ -88,12 +88,30 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          
+          # 1. Update Linux
           dnf update -y
+          
+          # 2. Install & Start MongoDB (The Database)
+          #    (Amazon Linux 2023 needs a custom repo file for Mongo)
+          echo "[mongodb-org-6.0]
+          name=MongoDB Repository
+          baseurl=https://repo.mongodb.org/yum/amazon/2023/mongodb-org/6.0/x86_64/
+          gpgcheck=1
+          enabled=1
+          gpgkey=https://www.mongodb.org/static/pgp/server-6.0.asc" > /etc/yum.repos.d/mongodb-org-6.0.repo
+          
+          dnf install -y mongodb-org
+          systemctl start mongod
+          systemctl enable mongod
+          
+          # 3. Install Java 17
           dnf install java-17-amazon-corretto -y
           
-          # Download THIS project's JAR file
+          # 4. Download JAR
           aws s3 cp s3://${BucketName}/mongodb-app.jar /home/ec2-user/app.jar
           
+          # 5. Run App
           nohup java -jar -Dserver.port=80 /home/ec2-user/app.jar > /home/ec2-user/log.txt 2>&1 &
 Outputs:
   ServerPublicIP:
